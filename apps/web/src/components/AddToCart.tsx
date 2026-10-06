@@ -133,7 +133,8 @@ export function AddToCart({ product }: { product: Product }) {
 
       <div className="rounded-2xl border border-paper-200 bg-paper-50/60 p-4 text-sm">
         <p className="flex items-start gap-3"><IconTruck className="mt-0.5 shrink-0 text-moss" width={18} height={18} />
-          <span>{t(dict.product.delivery, { country: countryName(country, locale), min: zone[0], max: zone[1] })}<br />
+          <span><span className="font-semibold">{dict.product.deliveryEurope}</span><br />
+            {t(dict.product.delivery, { country: countryName(country, locale), min: zone[0], max: zone[1] })}<br />
             <span className="text-mute">{t(dict.product.freeDelivery, { amount: money(freeFrom, locale) })}</span></span>
         </p>
       </div>
