@@ -1,0 +1,2 @@
+# Same line endings everywhere (the site is built and deployed on Linux; a CRLF `deploy.sh` or Dockerfile would break).
+* text=auto eol=lf

@@ -1,0 +1,21 @@
+{
+  "name": "vanguard-outdoor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vanguard Outdoor \u2014 European outdoor store (Next.js 15 + Express + PostgreSQL)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "bash scripts/setup.sh",
+    "dev": "bash scripts/dev.sh",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "test": "npm --prefix apps/api test",
+    "db:migrate": "npm --prefix apps/api run migrate",
+    "db:seed": "npm --prefix apps/api run seed",
+    "catalog:import": "npm --prefix apps/api run import:catalog",
+    "deploy": "bash scripts/deploy.sh"
+  }
+}

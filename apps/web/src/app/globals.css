@@ -1,0 +1,183 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────── Themes (RGB channels) ───────── */
+/* Forêt — forest green, moss, lichen, sand and ember: colours taken from the landscape */
+:root, [data-theme='forest'] {
+  --c-ink: 22 41 31;        /* #16291F deep forest */
+  --c-ink-800: 28 52 39;    /* #1C3427 */
+  --c-ink-700: 34 64 47;    /* #22402F */
+  --c-ink-600: 46 80 64;    /* #2E5040 */
+  --c-paper: 255 255 255;
+  --c-paper-50: 247 244 236;  /* #F7F4EC sand */
+  --c-paper-100: 239 234 221; /* #EFEADD */
+  --c-paper-200: 223 215 195; /* #DFD7C3 */
+  --c-signal: 180 82 31;      /* #B4521F ember — CTAs, sale (5.0:1 with white) */
+  --c-signal-600: 151 67 26;  /* #97431A */
+  --c-signal-50: 247 232 223;
+  --c-moss: 82 112 63;        /* #52703F moss (5.3:1 on body) */
+  --c-moss-600: 66 92 50;
+  --c-lichen: 169 194 122;    /* #A9C27A — accents on dark green */
+  --c-mute: 100 107 94;       /* #646B5E */
+  --c-logo-accent: 169 194 122;
+  --c-body: 251 249 244;      /* #FBF9F4 warm off-white */
+}
+/* Classique — the original black / white / red brief */
+[data-theme='classic'] {
+  --c-ink: 10 10 10;
+  --c-ink-800: 20 20 20;
+  --c-ink-700: 31 31 31;
+  --c-ink-600: 43 43 43;
+  --c-paper: 255 255 255;
+  --c-paper-50: 250 250 249;
+  --c-paper-100: 244 244 242;
+  --c-paper-200: 232 232 229;
+  --c-signal: 215 38 30;
+  --c-signal-600: 184 30 23;
+  --c-signal-50: 253 236 235;
+  --c-moss: 215 38 30;
+  --c-moss-600: 184 30 23;
+  --c-lichen: 215 38 30;
+  --c-mute: 107 107 107;
+  --c-logo-accent: 215 38 30;
+  --c-body: 255 255 255;
+}
+
+/* ───────── Design tokens shared by every theme: elevation, easing, density ───────── */
+:root {
+  --shadow-soft: 0 1px 2px rgb(var(--c-ink) / .06), 0 1px 1px rgb(var(--c-ink) / .04);
+  --shadow-lift: 0 12px 30px -12px rgb(var(--c-ink) / .30), 0 2px 6px rgb(var(--c-ink) / .06);
+  --shadow-float: 0 30px 60px -24px rgb(var(--c-ink) / .50);
+  --shadow-glow: 0 8px 20px -8px rgb(var(--c-signal) / .65);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);       /* decelerates like a quint: natural for entrances */
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1); /* small overshoot: micro-interactions */
+}
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; scroll-padding-top: 5rem; scrollbar-gutter: stable; }
+  body { @apply text-ink antialiased; background: rgb(var(--c-body)); font-feature-settings: 'ss01', 'cv11'; text-rendering: optimizeLegibility; }
+  ::selection { @apply bg-signal text-white; }
+  :focus-visible { outline: 2px solid rgb(var(--c-signal)); outline-offset: 2px; }
+  h1, h2, h3 { text-wrap: balance; }
+}
+
+@layer components {
+  .container-site { @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-10; }
+
+  /* ── Typography: fluid sizes instead of breakpoint jumps ── */
+  .eyebrow { @apply inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-moss; }
+  .eyebrow::before { content: ''; @apply h-px w-5 bg-current opacity-60; }
+  .eyebrow-dark { @apply eyebrow text-lichen; }
+  .h-display { @apply font-extrabold uppercase leading-[0.95] tracking-tightest; }
+  .display-xl { font-size: clamp(2.5rem, 1.1rem + 6.4vw, 5.75rem); }
+  .display-lg { font-size: clamp(1.9rem, 1.1rem + 3.4vw, 3.4rem); }
+  .h-section { @apply font-extrabold uppercase tracking-tight; font-size: clamp(1.35rem, 0.95rem + 1.5vw, 2rem); }
+
+  /* ── Buttons: compact by default (36 px), tuned with size modifiers ── */
+  .btn { @apply relative inline-flex h-9 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[13px] font-semibold leading-none transition duration-200 ease-smooth active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100; }
+  .btn-primary { @apply btn bg-signal text-white shadow-glow hover:-translate-y-px hover:bg-signal-600; }
+  .btn-dark { @apply btn bg-ink text-white hover:-translate-y-px hover:bg-ink-700; }
+  .btn-outline { @apply btn border border-ink/20 bg-white/60 text-ink hover:border-ink hover:bg-ink hover:text-white; }
+  .btn-soft { @apply btn bg-moss/10 text-moss-600 hover:bg-moss/20; }
+  .btn-ghost { @apply btn text-ink hover:bg-ink/5; }
+  .btn-ghost-light { @apply btn border border-white/30 bg-white/10 text-white backdrop-blur-sm hover:bg-white hover:text-ink; }
+  .btn-xs { @apply h-7 px-3 text-xs; }
+  .btn-sm { @apply h-8 px-3.5; }
+  .btn-lg { @apply h-10 px-5 text-sm; }
+  .btn-block { @apply w-full; }
+  /* round icon button: 36 px visible, 44 px touch area */
+  .icon-btn { @apply relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink transition duration-200 ease-smooth hover:bg-ink/5 active:scale-90; }
+  .icon-btn::after { content: ''; @apply absolute -inset-1; }
+
+  /* ── Fields ── */
+  .input { @apply h-10 w-full rounded-xl border border-paper-200 bg-white px-3.5 text-[15px] outline-none transition duration-200 placeholder:text-mute/70 focus:border-signal/60 focus:ring-4 focus:ring-signal/10; }
+  .label { @apply mb-1.5 block text-xs font-semibold text-ink/75; }
+
+  /* ── Surfaces & chips ── */
+  .card { @apply rounded-2xl border border-paper-200/80 bg-white shadow-soft; }
+  .chip { @apply inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-[11px] font-semibold leading-none; }
+  .chip-signal { @apply chip bg-signal text-white; }
+  .chip-ink { @apply chip bg-ink text-white; }
+  .chip-soft { @apply chip bg-paper-100 text-ink/80; }
+  .chip-glass { @apply chip border border-white/20 bg-white/10 text-white/90 backdrop-blur-sm; }
+
+  /* ── Navigation ── */
+  .nav-link { @apply relative whitespace-nowrap py-1 text-[13px] font-semibold text-ink/80 transition-colors duration-200 hover:text-ink; }
+  .nav-link::after { content: ''; @apply absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 rounded-full bg-signal transition-transform duration-300 ease-smooth; }
+  .nav-link:hover::after, .nav-link[aria-current='page']::after { @apply scale-x-100; }
+  .footer-title { @apply mb-4 text-xs font-bold uppercase tracking-[0.18em] text-white; }
+  .footer-list { @apply space-y-2.5 text-sm text-white/65; }
+  .footer-list a { @apply transition-colors hover:text-white; }
+
+  /* ── Loading ── */
+  .skeleton { @apply relative overflow-hidden rounded-xl bg-paper-100; }
+  .skeleton::after { content: ''; @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent; }
+
+  /* ── Admin tables ── */
+  .table { @apply w-full text-left text-sm; }
+  .table th { @apply border-b border-paper-200 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-mute; }
+  .table td { @apply border-b border-paper-100 px-3 py-3 align-middle; }
+
+  .prose-vg { @apply space-y-4 text-[15px] leading-relaxed text-ink/85; }
+  .prose-vg h2 { @apply pt-4 text-lg font-bold text-ink; }
+
+  /* ── Accessibility ── */
+  .skip-link { @apply fixed left-3 top-3 z-[100] -translate-y-20 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white shadow-float transition-transform focus:translate-y-0; }
+}
+
+@layer utilities {
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+}
+
+/* ───────── Motion ───────── */
+
+/* Scroll reveal: content is always visible without JavaScript. <Reveal> hides only the blocks that start below the fold,
+   after hydration, then eases them in when they enter the viewport. Transform + opacity only → no layout shift. */
+[data-reveal] { transition: opacity .8s var(--ease-out), transform .8s var(--ease-out); transition-delay: var(--reveal-delay, 0ms); }
+[data-reveal][data-state='hidden'] { opacity: 0; transform: translate3d(0, 20px, 0); }
+[data-reveal][data-reveal-from='left'][data-state='hidden'] { transform: translate3d(-28px, 0, 0); }
+[data-reveal][data-reveal-from='scale'][data-state='hidden'] { transform: scale(.96); }
+
+/* Soft aurora behind hero / newsletter (pair it with the animate-pan utility) */
+.aurora {
+  background-image:
+    radial-gradient(60% 80% at 12% 15%, rgb(var(--c-lichen) / .30), transparent 60%),
+    radial-gradient(50% 70% at 88% 25%, rgb(var(--c-signal) / .22), transparent 60%),
+    radial-gradient(80% 90% at 50% 105%, rgb(var(--c-moss) / .55), transparent 65%);
+  background-size: 150% 150%;
+}
+
+/* Scroll-driven parallax: runs on the compositor, no JavaScript. Browsers without support simply keep the layers still. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .parallax { animation: parallax linear both; animation-timeline: scroll(root block); animation-range: 0 90vh; }
+    @keyframes parallax { to { transform: translate3d(0, var(--parallax, 40px), 0); } }
+  }
+}
+
+/* Sweeping highlight used on brand cards */
+.shine { position: relative; overflow: hidden; }
+.shine::before {
+  content: ''; position: absolute; inset: 0; transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .16), transparent); transition: transform .9s var(--ease-out);
+}
+.shine:hover::before { transform: translateX(120%) skewX(-18deg); }
+
+/* Respect the user's motion preference: no movement, instant state changes */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0ms !important; }
+  [data-reveal], [data-reveal][data-state='hidden'] { opacity: 1 !important; transform: none !important; }
+  .confetti-piece { display: none !important; }
+}
+
+/* topographic line pattern used in hero & placeholders */
+.topo {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%2316291F' stroke-width='0.6' opacity='0.35'%3E%3Cpath d='M-20 60c40-30 80 20 120-5s70-35 160 10'/%3E%3Cpath d='M-20 90c50-25 90 25 130 0s70-30 150 15'/%3E%3Cpath d='M-20 120c45-20 95 30 135 5s75-25 145 20'/%3E%3Cpath d='M-20 150c40-15 100 35 140 10s80-20 140 25'/%3E%3Cpath d='M-20 180c35-10 105 40 145 15s85-15 135 30'/%3E%3Cpath d='M-20 30c45-35 75 15 115-10s65-40 165 5'/%3E%3C/g%3E%3C/svg%3E");
+}
+.topo-light {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='0.7' opacity='0.12'%3E%3Cpath d='M-20 60c60-40 110 30 160-5s90-45 200 15'/%3E%3Cpath d='M-20 100c70-35 120 35 170 0s95-40 190 20'/%3E%3Cpath d='M-20 140c65-30 130 40 180 5s100-35 180 25'/%3E%3Cpath d='M-20 180c60-25 140 45 190 10s105-30 170 30'/%3E%3Cpath d='M-20 220c55-20 150 50 200 15s110-25 160 35'/%3E%3Cpath d='M-20 260c50-15 160 55 210 20s115-20 150 40'/%3E%3C/g%3E%3C/svg%3E");
+}

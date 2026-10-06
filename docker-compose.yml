@@ -1,0 +1,28 @@
+# Local stack: Postgres + API (+ web via `npm run dev:web`)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vanguard
+      POSTGRES_PASSWORD: vanguard
+      POSTGRES_DB: vanguard
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vanguard"]
+      interval: 3s
+      retries: 20
+  api:
+    build: ./apps/api
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://vanguard:vanguard@db:5432/vanguard
+      JWT_SECRET: dev-only-secret-change-me
+      FRONTEND_URL: http://localhost:3000
+      PUBLIC_API_URL: http://localhost:4000
+      CORS_ORIGINS: http://localhost:3000
+      PAYMENT_PROVIDERS: mock
+    ports: ["4000:4000"]
+volumes:
+  pgdata:
