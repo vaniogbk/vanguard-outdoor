@@ -19,6 +19,9 @@ const LOG_FORMAT = config.isProd
   ? ':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
   : ':method :safe-url :status :response-time ms - :res[content-length]';
 
+// Accounts, orders, checkout and admin answers hold personal data: no browser, proxy or CDN may keep a copy
+const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
+
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1); // Railway / Vercel sit behind a proxy
@@ -47,6 +50,7 @@ export function createApp() {
     res.json({ ok: true, service: 'vanguard-outdoor-api', time: new Date().toISOString() });
   });
 
+  app.use(['/api/auth', '/api/orders', '/api/checkout', '/api/admin', '/api/newsletter'], noStore);
   app.use('/api/auth', authRoutes);
   app.use('/api', catalogRoutes);
   app.use('/api/checkout', checkoutRoutes);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, many, tx } from '../db/index.js';
-import { parse, notFound, badRequest, pick, HttpError } from '../lib/http.js';
+import { parse, notFound, badRequest, pick, HttpError, isUuid, intParam } from '../lib/http.js';
 import { requireAdmin } from '../lib/auth.js';
 import { listProducts, getProduct, serializeProduct } from '../lib/catalog.js';
 import { ORDER_STATUSES, addEvent, loadOrder, serializeOrder } from '../lib/orders.js';
@@ -10,6 +10,8 @@ import { runImport } from '../scripts/import-shopify.js';
 
 const router = Router();
 router.use(requireAdmin);
+// every :id of this router is a uuid: anything else cannot exist (404) instead of reaching Postgres as an invalid uuid (500)
+router.param('id', (_req, _res, next, id) => (isUuid(id) ? next() : next(notFound())));
 
 const i18n = z.object({ en: z.string().max(10000), fr: z.string().max(10000).optional().default(''), de: z.string().max(10000).optional().default('') });
 const i18nList = z.object({ en: z.array(z.string()).default([]), fr: z.array(z.string()).default([]), de: z.array(z.string()).default([]) });
@@ -193,13 +195,13 @@ router.get('/categories', async (_req, res) => {
 router.get('/orders', async (req, res) => {
   const where = [];
   const params = [];
-  if (req.query.status) { params.push(String(req.query.status).split(',')); where.push(`o.status = ANY($${params.length})`); }
+  if (req.query.status) { params.push(String(req.query.status).split(',').slice(0, 10)); where.push(`o.status = ANY($${params.length})`); }
   if (req.query.q) {
-    params.push(`%${req.query.q}%`);
+    params.push(`%${String(req.query.q).slice(0, 100)}%`);
     where.push(`(o.number ILIKE $${params.length} OR o.email ILIKE $${params.length} OR o.shipping_address->>'lastName' ILIKE $${params.length})`);
   }
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
-  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = intParam(req.query.limit, { min: 1, max: 200, fallback: 50 });
+  const page = intParam(req.query.page, { min: 1, max: 100000, fallback: 1 });
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const [rows, count] = await Promise.all([
     many(`SELECT o.*, (SELECT COUNT(*)::int FROM order_items WHERE order_id = o.id) AS item_count
@@ -295,7 +297,7 @@ router.post('/catalog/import', async (req, res) => {
 router.get('/customers', async (req, res) => {
   const params = [];
   let w = '';
-  if (req.query.q) { params.push(`%${req.query.q}%`); w = `WHERE u.email ILIKE $1 OR u.last_name ILIKE $1`; }
+  if (req.query.q) { params.push(`%${String(req.query.q).slice(0, 100)}%`); w = `WHERE u.email ILIKE $1 OR u.last_name ILIKE $1`; }
   const rows = await many(
     `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.locale, u.created_at,
        COUNT(o.id) FILTER (WHERE o.status IN ('paid','processing','shipped','delivered'))::int AS orders,

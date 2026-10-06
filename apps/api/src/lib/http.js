@@ -21,12 +21,38 @@ export function parse(schema, data) {
   return result.data;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (v) => typeof v === 'string' && UUID.test(v);
+
+/**
+ * Integer taken from a query string: truncated and clamped to [min, max]; `fallback` when absent, zero or not a finite
+ * number. (Number('1e308'), Number('abc') and Number('-5') used to flow straight into LIMIT / OFFSET and end in a 500.)
+ */
+export function intParam(value, { min, max, fallback }) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = Math.trunc(Number(value));
+  if (!Number.isFinite(n) || n === 0) return fallback;
+  return Math.min(Math.max(n, min), max);
+}
+
+/** A price in euros typed in a query string → integer cents, or null when it is not a usable amount */
+export function eurosToCents(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.min(Math.round(n * 100), 2_000_000_000) : null;
+}
+
+// Postgres refusing a value the CLIENT sent (not a uuid, number out of range, negative LIMIT/OFFSET, text too long…)
+const PG_CLIENT_INPUT_ERRORS = new Set(['22P02', '22003', '22001', '22007', '22008', '2201W', '2201X']);
+
 export function errorHandler(err, req, res, _next) {
-  const status = err.status || err.statusCode || 500;
+  const badInput = PG_CLIENT_INPUT_ERRORS.has(err.code);
+  const status = err.status || err.statusCode || (badInput ? 400 : 500);
   if (status >= 500) console.error(err);
+  else if (badInput) console.warn(`[db] request rejected (${err.code}) ${req.method} ${redactUrl(req.originalUrl || req.url)}`);
   res.status(status).json({
     // unexpected errors stay opaque; deliberate HttpErrors (e.g. 502 from a PSP) keep their message
-    error: status >= 500 && !(err instanceof HttpError) ? 'Internal server error' : err.message,
+    error: badInput && !err.status ? 'Invalid request parameter' : status >= 500 && !(err instanceof HttpError) ? 'Internal server error' : err.message,
     ...(err.details ? { details: err.details } : {}),
   });
 }

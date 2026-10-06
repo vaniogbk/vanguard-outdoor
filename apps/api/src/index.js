@@ -16,10 +16,25 @@ async function main() {
     if (!admin.rowCount) await seed(); // idempotent upserts; creates the admin
   }
   const app = createApp();
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, () => {
     console.log(`▲ Vanguard Outdoor API on :${config.port} (${config.env})`);
     console.log(`  payment providers: ${enabledProviders().map((p) => p.name).join(', ') || 'NONE configured'}`);
   });
+
+  // Railway stops a container with SIGTERM: finish the requests in flight and release the database connections instead of
+  // being killed in the middle of a payment confirmation.
+  let stopping = false;
+  const shutdown = (signal) => {
+    if (stopping) return;
+    stopping = true;
+    console.log(`${signal} received — shutting down`);
+    server.close(async () => {
+      await pool.end().catch(() => {});
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10_000).unref(); // never hang a deployment
+  };
+  for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => shutdown(signal));
 }
 
 main().catch((e) => {

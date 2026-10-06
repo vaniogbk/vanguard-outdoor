@@ -1,5 +1,5 @@
 import { many, one } from '../db/index.js';
-import { pick } from './http.js';
+import { pick, intParam, eurosToCents } from './http.js';
 
 export const BRANDS = {
   'reactive-outdoor': 'Reactive Outdoor',
@@ -82,6 +82,9 @@ const SORTS = {
   'price-desc': 'min_price_cents DESC',
   name: "p.title->>'en' ASC",
 };
+// hasOwn: ?sort=__proto__ / constructor / toString must fall back to the default order, not reach the SQL text
+const sortSql = (sort) => (typeof sort === 'string' && Object.hasOwn(SORTS, sort) ? SORTS[sort] : SORTS.featured);
+const csv = (v) => String(v).split(',').map((x) => x.trim()).filter(Boolean).slice(0, 20);
 
 /**
  * Filterable listing. filters: { q, category, brand, minPrice, maxPrice, inStock, onSale, sort, page, limit, status }
@@ -94,23 +97,25 @@ export async function listProducts(filters = {}, { includeInactive = false } = {
   if (!includeInactive) where.push(`p.status = 'active'`);
   else if (filters.status) add('p.status = ?', filters.status);
   if (filters.category) {
-    const cats = String(filters.category).split(',').filter(Boolean);
-    add('c.slug = ANY(?)', cats);
+    add('c.slug = ANY(?)', csv(filters.category));
   }
-  if (filters.brand) add('p.brand = ANY(?)', String(filters.brand).split(',').filter(Boolean));
+  if (filters.brand) add('p.brand = ANY(?)', csv(filters.brand));
   if (filters.q) {
-    params.push(`%${String(filters.q).trim()}%`);
+    params.push(`%${String(filters.q).trim().slice(0, 100)}%`);
     const i = params.length;
     where.push(`(p.title->>'en' ILIKE $${i} OR p.title->>'fr' ILIKE $${i} OR p.title->>'de' ILIKE $${i} OR array_to_string(p.tags, ' ') ILIKE $${i})`);
   }
-  if (filters.minPrice != null && filters.minPrice !== '') add('COALESCE(v.min_price,0) >= ?', Math.round(Number(filters.minPrice) * 100));
-  if (filters.maxPrice != null && filters.maxPrice !== '') add('COALESCE(v.min_price,0) <= ?', Math.round(Number(filters.maxPrice) * 100));
+  // a price that is not a usable number is ignored (instead of reaching Postgres as 'NaN' / 'Infinity' and ending in a 500)
+  const minCents = eurosToCents(filters.minPrice);
+  const maxCents = eurosToCents(filters.maxPrice);
+  if (minCents !== null) add('COALESCE(v.min_price,0) >= ?', minCents);
+  if (maxCents !== null) add('COALESCE(v.min_price,0) <= ?', maxCents);
   if (filters.inStock === 'true' || filters.inStock === true) where.push('COALESCE(v.total_stock,0) > 0');
   if (filters.onSale === 'true' || filters.onSale === true) where.push('v.min_compare IS NOT NULL');
 
-  const limit = Math.min(Math.max(Number(filters.limit) || 24, 1), 100);
-  const page = Math.max(Number(filters.page) || 1, 1);
-  const order = SORTS[filters.sort] || SORTS.featured;
+  const limit = intParam(filters.limit, { min: 1, max: 100, fallback: 24 });
+  const page = intParam(filters.page, { min: 1, max: 100000, fallback: 1 });
+  const order = sortSql(filters.sort);
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
   const base = `${productSelect} ${whereSql}`;

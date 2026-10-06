@@ -35,12 +35,22 @@ export async function applyPaymentResult({ orderNumber, status, reference, provi
         `UPDATE orders SET status='paid', paid_at=now(), updated_at=now(), payment_reference=COALESCE($2, payment_reference)
          WHERE id=$1`, [order.id, reference || null],
       );
-      // decrement stock once, at payment time
+      // Decrement stock once, at payment time. Stock is only checked when the basket is priced, so two shoppers can pay for the
+      // last unit: the order stays paid (the money is taken), stock never goes below zero and the admin is told to check it.
+      const { rows: lines } = await c.query(
+        `SELECT oi.sku, oi.quantity, v.stock FROM order_items oi JOIN product_variants v ON v.id = oi.variant_id
+         WHERE oi.order_id = $1 ORDER BY oi.variant_id FOR UPDATE OF v`, [order.id],
+      );
       await c.query(
-        `UPDATE product_variants v SET stock = v.stock - oi.quantity
+        `UPDATE product_variants v SET stock = GREATEST(v.stock - oi.quantity, 0)
          FROM order_items oi WHERE oi.order_id = $1 AND oi.variant_id = v.id`, [order.id],
       );
       await addEvent(c, order.id, 'payment_confirmed', 'Payment confirmed', { provider, reference });
+      const short = lines.filter((l) => l.stock < l.quantity);
+      if (short.length) {
+        await addEvent(c, order.id, 'stock_shortfall', 'Paid order exceeds the available stock — check before shipping',
+          { lines: short.map((l) => ({ sku: l.sku, ordered: l.quantity, available: Math.max(l.stock, 0) })) }, false);
+      }
     } else if (status === 'failed') {
       if (order.status !== 'pending_payment') return { ok: true, order, unchanged: true };
       await c.query(`UPDATE orders SET status='payment_failed', updated_at=now() WHERE id=$1`, [order.id]);

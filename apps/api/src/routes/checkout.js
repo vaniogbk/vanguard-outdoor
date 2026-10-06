@@ -13,6 +13,9 @@ import { addressSchema } from './auth.js';
 
 const router = Router();
 const limiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+// read-only endpoints hit by the cart and the payment-return page: generous (the return page polls), but not unlimited
+const quoteLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false });
+const statusLimiter = rateLimit({ windowMs: 60 * 1000, limit: 90, standardHeaders: 'draft-7', legacyHeaders: false });
 
 const itemsSchema = z.array(z.object({ variantId: z.string().uuid(), quantity: z.number().int().min(1).max(20) })).min(1).max(50);
 
@@ -26,7 +29,7 @@ router.get('/config', (_req, res) => {
   });
 });
 
-router.post('/quote', async (req, res) => {
+router.post('/quote', quoteLimiter, async (req, res) => {
   const data = parse(
     z.object({
       items: itemsSchema,
@@ -100,7 +103,7 @@ router.post('/', limiter, optionalAuth, async (req, res) => {
 });
 
 /** Order status for the return page (guest-safe through the access token) */
-router.get('/status/:number', async (req, res) => {
+router.get('/status/:number', statusLimiter, async (req, res) => {
   const data = await loadOrder('number = $1', [req.params.number]);
   if (!data) throw notFound('Order not found');
   if (req.query.token !== data.order.access_token) throw forbidden();

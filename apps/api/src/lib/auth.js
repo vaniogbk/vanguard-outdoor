@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs'; // only used to verify hashes created before the move to scrypt
 import config from '../config.js';
+import { one } from '../db/index.js';
 import { unauthorized, forbidden } from './http.js';
 
 /**
@@ -52,7 +53,8 @@ export async function verifyAgainstDummy(password) {
 
 export function signToken(user) {
   return jwt.sign({ sub: user.id, role: user.role, email: user.email }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn,
+    // an admin session is the most valuable thing to steal: it expires much sooner than a customer's
+    expiresIn: user.role === 'admin' ? config.adminJwtExpiresIn : config.jwtExpiresIn,
     issuer: 'vanguard-outdoor',
   });
 }
@@ -87,10 +89,18 @@ export function requireAuth(req, _res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  requireAuth(req, res, (err) => {
+  requireAuth(req, res, async (err) => {
     if (err) return next(err);
-    if (req.user.role !== 'admin') return next(forbidden());
-    next();
+    try {
+      // the role inside the token can be days old: read it again, so that demoting or deleting an admin takes effect at once
+      const row = await one('SELECT role FROM users WHERE id = $1', [req.user.id]);
+      if (!row) return next(unauthorized());
+      if (row.role !== 'admin') return next(forbidden());
+      req.user.role = row.role;
+      next();
+    } catch (e) {
+      next(e);
+    }
   });
 }
 

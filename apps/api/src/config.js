@@ -39,6 +39,7 @@ export const config = {
   databaseSsl: env.DATABASE_SSL === 'true',
   jwtSecret,
   jwtExpiresIn: env.JWT_EXPIRES_IN || '7d',
+  adminJwtExpiresIn: env.ADMIN_JWT_EXPIRES_IN || '12h',
   // Comma-separated list of allowed origins (Vercel prod + preview domains)
   corsOrigins: (env.CORS_ORIGINS || 'http://localhost:3000').split(',').map((s) => s.trim()).filter(Boolean),
   frontendUrl: (env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, ''),

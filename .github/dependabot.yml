@@ -1,0 +1,22 @@
+# Weekly dependency updates. Minor and patch updates are grouped into one pull request per app to keep the noise low;
+# major updates (e.g. Next.js 16, Tailwind 4) arrive as separate pull requests, each of them checked by the CI.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/api
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      api-minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: docker
+    directory: /apps/api
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }

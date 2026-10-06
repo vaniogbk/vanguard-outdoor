@@ -222,24 +222,25 @@ test('payoneer webhook: 404 while disabled; when enabled it needs its own strong
   const savedProviders = config.payments.providers;
   const saved = { ...payoneer };
   const SECRET = crypto.randomBytes(24).toString('hex');
+  const LONG = `LONG-${Date.now()}`; // unique per run: the PSP event keys are kept in the database, so a fixed value works only once
   const r = await request(app).post('/api/checkout').send({
     items: [{ variantId: variant.id, quantity: 1 }], email: 'payo@example.com', shippingAddress: { ...address, country: 'FR' }, provider: 'mock', acceptTerms: true,
   }).expect(201);
   const order = r.body.order;
-  await pool.query(`UPDATE orders SET payment_provider = 'payoneer', payment_session_id = 'LONG-1' WHERE number = $1`, [order.number]);
+  await pool.query(`UPDATE orders SET payment_provider = 'payoneer', payment_session_id = $2 WHERE number = $1`, [order.number, LONG]);
   const hit = (q) => request(app).get('/api/webhooks/payoneer').query({ transactionId: order.number, statusCode: 'charged', ...q });
 
-  await hit({ s: SECRET, longId: 'LONG-1' }).expect(404); // Payoneer is not enabled: the route does not exist
+  await hit({ s: SECRET, longId: LONG }).expect(404); // Payoneer is not enabled: the route does not exist
   Object.assign(payoneer, { merchantCode: 'M', apiToken: 'T', notificationSecret: SECRET });
   config.payments.providers = ['mock', 'payoneer'];
   try {
-    await hit({ s: 'wrong', longId: 'LONG-1' }).expect(401);
+    await hit({ s: 'wrong', longId: LONG }).expect(401);
     const jwtDerived = crypto.createHash('sha256').update(`:${config.jwtSecret}`).digest('hex').slice(0, 32);
-    await hit({ s: jwtDerived, longId: 'LONG-1' }).expect(401); // the old secret derived from JWT_SECRET is worthless now
+    await hit({ s: jwtDerived, longId: LONG }).expect(401); // the old secret derived from JWT_SECRET is worthless now
     await hit({ s: SECRET }).expect(400); // longId is mandatory
     await hit({ s: SECRET, longId: 'SOMEONE-ELSES' }).expect(400);
     assert.equal(await orderStatus(order), 'pending_payment');
-    await hit({ s: SECRET, longId: 'LONG-1' }).expect(200);
+    await hit({ s: SECRET, longId: LONG }).expect(200);
     assert.equal(await orderStatus(order), 'paid');
     await request(app).get('/api/webhooks/payoneer').query({ s: SECRET, transactionId: 'VG-999999', longId: 'x', statusCode: 'charged' }).expect(200); // unknown order: acknowledged, nothing to settle
   } finally {

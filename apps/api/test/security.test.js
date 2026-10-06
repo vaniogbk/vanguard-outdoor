@@ -69,3 +69,15 @@ test('config: in production the API refuses to start with a weak JWT_SECRET (and
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /BOOT_OK/);
 });
+
+test('deployment: the container does not run as root and installs exactly what the lockfile says', async () => {
+  const fs = await import('node:fs');
+  // comments may quote the very commands we forbid, so only the instructions are checked
+  const dockerfile = fs.readFileSync(path.join(apiDir, 'Dockerfile'), 'utf8')
+    .split(/\r?\n/).filter((l) => !l.trim().startsWith('#')).join('\n');
+  assert.match(dockerfile, /^USER node$/m, 'the API must not run as root');
+  assert.match(dockerfile, /npm ci --omit=dev/);
+  assert.doesNotMatch(dockerfile, /\|\|\s*npm install/, 'no silent fallback to an install that ignores the lockfile');
+  const compose = fs.readFileSync(path.join(apiDir, '..', '..', 'docker-compose.yml'), 'utf8');
+  assert.doesNotMatch(compose, /ports:\s*\["\d+:\d+"\]/, 'local services are published on 127.0.0.1 only');
+});
